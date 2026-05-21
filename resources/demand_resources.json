@@ -1,0 +1,44 @@
+{
+  "low": [
+    {
+      "title": "Inventory basics (safety stock)",
+      "url": "https://en.wikipedia.org/wiki/Safety_stock"
+    },
+    {
+      "title": "Introduction to demand forecasting",
+      "url": "https://en.wikipedia.org/wiki/Demand_forecasting"
+    },
+    {
+      "title": "Microsoft Learn: Supply Chain",
+      "url": "https://learn.microsoft.com/"
+    }
+  ],
+  "medium": [
+    {
+      "title": "Promotions planning guide",
+      "url": "https://en.wikipedia.org/wiki/Sales_promotion"
+    },
+    {
+      "title": "Forecast accuracy metrics (MAE/RMSE)",
+      "url": "https://en.wikipedia.org/wiki/Mean_absolute_error"
+    },
+    {
+      "title": "Stock replenishment strategies",
+      "url": "https://en.wikipedia.org/wiki/Replenishment"
+    }
+  ],
+  "high": [
+    {
+      "title": "Prevent stockouts (reorder points)",
+      "url": "https://en.wikipedia.org/wiki/Reorder_point"
+    },
+    {
+      "title": "Capacity planning",
+      "url": "https://en.wikipedia.org/wiki/Capacity_planning"
+    },
+    {
+      "title": "Price optimisation overview",
+      "url": "https://en.wikipedia.org/wiki/Price_optimization"
+    }
+  ]
+}

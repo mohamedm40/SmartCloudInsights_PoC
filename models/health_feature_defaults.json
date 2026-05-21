@@ -1,0 +1,7 @@
+{
+  "age": 25,
+  "bmi": 24.0,
+  "sleep_hours": 7.0,
+  "activity_minutes": 30,
+  "smoking": "no"
+}

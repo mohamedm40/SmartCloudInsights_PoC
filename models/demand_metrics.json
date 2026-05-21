@@ -1,0 +1,7 @@
+{
+  "module": "demand",
+  "roc_auc": 0.9628249999999999,
+  "accuracy": 0.88,
+  "f1_high_demand": 0.8787878787878788,
+  "support_test": 400
+}

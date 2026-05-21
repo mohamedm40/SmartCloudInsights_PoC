@@ -1,0 +1,32 @@
+{
+  "low": [
+    {
+      "title": "Healthy diet guidance (WHO)",
+      "url": "https://www.who.int/news-room/fact-sheets/detail/healthy-diet"
+    },
+    {
+      "title": "Physical activity basics (WHO)",
+      "url": "https://www.who.int/news-room/fact-sheets/detail/physical-activity"
+    }
+  ],
+  "medium": [
+    {
+      "title": "Diabetes prevention (CDC)",
+      "url": "https://www.cdc.gov/diabetes/prevention/index.html"
+    },
+    {
+      "title": "Diabetes overview (NHS)",
+      "url": "https://www.nhs.uk/conditions/diabetes/"
+    }
+  ],
+  "high": [
+    {
+      "title": "Diabetes risk factors (CDC)",
+      "url": "https://www.cdc.gov/diabetes/basics/risk-factors.html"
+    },
+    {
+      "title": "Talk to a healthcare professional (NHS)",
+      "url": "https://www.nhs.uk/nhs-services/gps/"
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartCloud Insights - Intelligent Web Apps</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    label { display:block; margin-top: 10px; font-weight:600; }
+    input, select { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; }
+    button { padding: 12px 16px; border: 0; border-radius: 10px; cursor: pointer; font-weight: 700; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+    .pill { display:inline-block; padding: 6px 10px; border-radius: 999px; border:1px solid #ccc; font-weight:700; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    .muted { color:#666; font-size: 14px; }
+    .ok { color: #0a7; font-weight: 700; }
+    .err { color: #c00; font-weight: 700; }
+    .small { font-size: 12px; color:#666; }
+    hr { border:0; border-top:1px solid #eee; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+  <h1>SmartCloud Insights</h1>
+  <p class="muted">Cloud-based intelligent web applications using Machine Learning (Student performance, Product demand, Health trends).</p>
+
+  <div class="card">
+    <h2>Select Use Case</h2>
+    <label>Module</label>
+    <select id="module" onchange="onModuleChange()">
+      <option value="student" selected>Student Performance (At-Risk Prediction)</option>
+      <option value="demand">Product Demand (High Demand Forecast)</option>
+      <option value="health">Health Trends (Higher Risk Indicator)</option>
+    </select>
+    <p class="small">API Base: <span id="apiBase"></span> (edit <code>web/config.js</code> for Azure)</p>
+  </div>
+
+  <div class="card">
+    <h2>Enter Inputs</h2>
+
+    <!-- Student -->
+    <div id="form-student">
+      <div class="row">
+        <div>
+          <label>Study Time (1-4)</label>
+          <input id="studytime" type="number" min="1" max="4" value="2" />
+        </div>
+        <div>
+          <label>Failures (0-3)</label>
+          <input id="failures" type="number" min="0" max="3" value="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Absences (0-93)</label>
+          <input id="absences" type="number" min="0" max="93" value="6" />
+        </div>
+        <div>
+          <label>Wants Higher Education?</label>
+          <select id="higher">
+            <option value="yes" selected>yes</option>
+            <option value="no">no</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Internet Access?</label>
+      <select id="internet">
+        <option value="yes" selected>yes</option>
+        <option value="no">no</option>
+      </select>
+    </div>
+
+    <!-- Demand -->
+    <div id="form-demand" style="display:none;">
+      <p class="muted">Real dataset: UCI Bike Sharing (daily demand + weather/season features)</p>
+
+      <div class="row">
+        <div>
+          <label>Season (1-4)</label>
+          <select id="season">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div>
+          <label>Weather situation (1-4)</label>
+          <select id="weathersit">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Working day (0/1)</label>
+          <select id="workingday">
+            <option value="0">0</option>
+            <option value="1" selected>1</option>
+          </select>
+        </div>
+        <div>
+          <label>Holiday (0/1)</label>
+          <select id="holiday">
+            <option value="0" selected>0</option>
+            <option value="1">1</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Weekday (0-6)</label>
+          <input id="weekday" type="number" min="0" max="6" value="2" />
+        </div>
+        <div>
+          <label>Temperature (0-1)</label>
+          <input id="temp" type="number" min="0" max="1" step="0.01" value="0.50" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Humidity (0-1)</label>
+          <input id="hum" type="number" min="0" max="1" step="0.01" value="0.50" />
+        </div>
+        <div>
+          <label>Wind speed (0-1)</label>
+          <input id="windspeed" type="number" min="0" max="1" step="0.01" value="0.20" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div id="form-health" style="display:none;">
+      <p class="muted">Real dataset: UCI Early Stage Diabetes Risk Prediction (symptoms + class label)</p>
+
+      <div class="row">
+        <div>
+          <label>Age</label>
+          <input id="age" type="number" min="10" max="100" value="30" />
+        </div>
+        <div>
+          <label>Gender</label>
+          <select id="gender">
+            <option value="male" selected>male</option>
+            <option value="female">female</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Polyuria</label>
+          <select id="polyuria">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+        <div>
+          <label>Polydipsia</label>
+          <select id="polydipsia">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Sudden weight loss</label>
+          <select id="sudden_weight_loss">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+        <div>
+          <label>Weakness</label>
+          <select id="weakness">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Polyphagia</label>
+          <select id="polyphagia">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+        <div>
+          <label>Obesity</label>
+          <select id="obesity">
+            <option value="no" selected>no</option>
+            <option value="yes">yes</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+    <button onclick="runPredict()">Predict</button>
+    <span id="status" class="muted"></span>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none;">
+    <h2>Result</h2>
+    <div><span class="pill" id="level"></span></div>
+    <p><b>Score:</b> <span id="score"></span> <span class="muted" id="scoreLabel"></span></p>
+    <h3>Recommended resources</h3>
+    <ul id="resources"></ul>
+    <p class="muted" id="disclaimer"></p>
+  </div>
+
+<script src="config.js"></script>
+<script>
+const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
+document.getElementById("apiBase").textContent = API_BASE;
+
+function onModuleChange() {
+  const m = document.getElementById("module").value;
+  document.getElementById("form-student").style.display = (m === "student") ? "block" : "none";
+  document.getElementById("form-demand").style.display = (m === "demand") ? "block" : "none";
+  document.getElementById("form-health").style.display = (m === "health") ? "block" : "none";
+}
+
+async function runPredict() {
+  const status = document.getElementById("status");
+  const resultCard = document.getElementById("resultCard");
+
+  status.textContent = " Running...";
+  status.className = "muted";
+  resultCard.style.display = "none";
+
+  const module = document.getElementById("module").value;
+
+  let features = {};
+  if (module === "student") {
+    features = {
+      studytime: Number(document.getElementById("studytime").value),
+      failures: Number(document.getElementById("failures").value),
+      absences: Number(document.getElementById("absences").value),
+      higher: document.getElementById("higher").value,
+      internet: document.getElementById("internet").value
+    };
+  } else if (module === "demand") {
+    features = {
+      season: Number(document.getElementById("season").value),
+      holiday: Number(document.getElementById("holiday").value),
+      workingday: Number(document.getElementById("workingday").value),
+      weathersit: Number(document.getElementById("weathersit").value),
+      weekday: Number(document.getElementById("weekday").value),
+      temp: Number(document.getElementById("temp").value),
+      hum: Number(document.getElementById("hum").value),
+      windspeed: Number(document.getElementById("windspeed").value)
+    };
+  } else if (module === "health") {
+    features = {
+      age: Number(document.getElementById("age").value),
+      gender: document.getElementById("gender").value,
+      polyuria: document.getElementById("polyuria").value,
+      polydipsia: document.getElementById("polydipsia").value,
+      sudden_weight_loss: document.getElementById("sudden_weight_loss").value,
+      weakness: document.getElementById("weakness").value,
+      polyphagia: document.getElementById("polyphagia").value,
+      obesity: document.getElementById("obesity").value
+    };
+  }
+
+  const payload = { features };
+
+  try {
+    const url = `${API_BASE}/${module}/predict`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error("API error: " + res.status + " " + txt);
+    }
+
+    const data = await res.json();
+    document.getElementById("level").textContent = "Level: " + String(data.level || "").toUpperCase();
+    document.getElementById("score").textContent = data.score;
+    document.getElementById("scoreLabel").textContent = "(" + (data.score_label || "score") + ")";
+    document.getElementById("disclaimer").textContent = data.disclaimer || "";
+
+    const ul = document.getElementById("resources");
+    ul.innerHTML = "";
+    (data.recommended_resources || []).forEach(r => {
+      const li = document.createElement("li");
+      li.innerHTML = `<a href="${r.url}" target="_blank" rel="noreferrer">${r.title}</a>`;
+      ul.appendChild(li);
+    });
+
+    status.textContent = " Success ✅";
+    status.className = "ok";
+    resultCard.style.display = "block";
+
+  } catch (e) {
+    status.textContent = " " + e.message;
+    status.className = "err";
+  }
+}
+</script>
+
+</body>
+</html>

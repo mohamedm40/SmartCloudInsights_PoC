@@ -1,0 +1,7 @@
+{
+  "module": "health",
+  "roc_auc": 0.9600000000000001,
+  "accuracy": 0.888,
+  "f1_high_risk": 0.8847736625514403,
+  "support_test": 500
+}

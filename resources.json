@@ -1,0 +1,23 @@
+{
+  "low": [
+    {"title": "Time management tips", "url": "https://www.mindtools.com/a4wo118/time-management"},
+    {"title": "Pomodoro technique", "url": "https://francescocirillo.com/pages/pomodoro-technique"},
+    {"title": "Study skills (general)", "url": "https://www.open.edu/openlearn/skills-for-study"},
+    {"title": "Khan Academy (practice)", "url": "https://www.khanacademy.org/"},
+    {"title": "Microsoft Learn", "url": "https://learn.microsoft.com/"}
+  ],
+  "medium": [
+    {"title": "Active recall", "url": "https://collegeinfogeek.com/active-recall/"},
+    {"title": "Spaced repetition", "url": "https://ncase.me/remember/"},
+    {"title": "Practice strategy", "url": "https://www.open.edu/openlearn/skills-for-study"},
+    {"title": "Khan Academy (targeted)", "url": "https://www.khanacademy.org/"},
+    {"title": "Ask for support", "url": "https://www.skillsyouneed.com/ips/asking-for-help.html"}
+  ],
+  "high": [
+    {"title": "Build a study plan", "url": "https://www.mindtools.com/"},
+    {"title": "Reduce procrastination", "url": "https://www.apa.org/topics/procrastination"},
+    {"title": "Seek academic support early", "url": "https://www.skillsyouneed.com/ips/asking-for-help.html"},
+    {"title": "Daily revision routine", "url": "https://www.open.edu/openlearn/skills-for-study"},
+    {"title": "Khan Academy (foundation)", "url": "https://www.khanacademy.org/"}
+  ]
+}
