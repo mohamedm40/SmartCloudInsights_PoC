@@ -183,6 +183,7 @@ def predict(module: str, req: PredictRequest):
     mod = REGISTRY[module]
     try:
         mod.load()
+        defaults = mod.defaults()
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -190,13 +191,20 @@ def predict(module: str, req: PredictRequest):
     if unknown:
         raise HTTPException(status_code=400, detail=f"Unknown feature(s): {unknown}")
 
-    result = mod.predict(req.features)
+    # Merge default values with user input
+    # This allows {"features": {}} to work using stored default student values
+    full_features = defaults.copy()
+    full_features.update(req.features)
+
+    try:
+        result = mod.predict(full_features)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     if module == "student":
-        save_student_history(req.features, result)
+        save_student_history(full_features, result)
 
     return result
-
 
 @app.post("/predict")
 def predict_legacy(req: PredictRequest):
