@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,11 +14,10 @@ from modules.base import ModuleNotReadyError
 
 try:
     from azure.storage.blob import BlobServiceClient
-    from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+    from azure.core.exceptions import ResourceExistsError
 except Exception:
     BlobServiceClient = None
     ResourceExistsError = Exception
-    ResourceNotFoundError = Exception
 
 
 class PredictRequest(BaseModel):
@@ -42,6 +42,35 @@ STUDENT_HISTORY_CONTAINER = os.getenv("STUDENT_HISTORY_CONTAINER", "student-hist
 STUDENT_HISTORY_BLOB = os.getenv("STUDENT_HISTORY_BLOB", "student_prediction_history.jsonl")
 
 
+def clean_json(data: Any):
+    """
+    Converts numpy/pandas/model output values into JSON-safe values.
+    This prevents FastAPI from crashing with Internal Server Error.
+    """
+    try:
+        if hasattr(data, "item"):
+            return data.item()
+
+        if isinstance(data, dict):
+            return {str(k): clean_json(v) for k, v in data.items()}
+
+        if isinstance(data, list):
+            return [clean_json(v) for v in data]
+
+        if isinstance(data, tuple):
+            return [clean_json(v) for v in data]
+
+        if pd.isna(data):
+            return None
+
+        return data
+    except Exception:
+        try:
+            return jsonable_encoder(data)
+        except Exception:
+            return str(data)
+
+
 def module_status():
     status = {}
     for name, mod in REGISTRY.items():
@@ -51,51 +80,77 @@ def module_status():
 
 
 def get_blob_client():
-    if not AZURE_STORAGE_CONNECTION_STRING or BlobServiceClient is None:
-        return None
-
-    service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-    container_client = service.get_container_client(STUDENT_HISTORY_CONTAINER)
-
     try:
-        container_client.create_container()
-    except ResourceExistsError:
-        pass
-    except Exception:
-        pass
+        if not AZURE_STORAGE_CONNECTION_STRING or BlobServiceClient is None:
+            return None
 
-    return container_client.get_blob_client(STUDENT_HISTORY_BLOB)
+        service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+        container_client = service.get_container_client(STUDENT_HISTORY_CONTAINER)
+
+        try:
+            container_client.create_container()
+        except ResourceExistsError:
+            pass
+        except Exception as e:
+            print(f"Container create/check error: {e}")
+
+        return container_client.get_blob_client(STUDENT_HISTORY_BLOB)
+
+    except Exception as e:
+        print(f"Blob client error: {e}")
+        return None
 
 
 def save_student_history(features: Dict[str, Any], result: Dict[str, Any]):
-    record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "module": "student",
-        "features": features,
-        "prediction_result": result
-    }
+    """
+    Saves student prediction history into Azure Blob Storage.
+    If Azure save fails, it will NOT crash prediction endpoint.
+    """
+    try:
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "module": "student",
+            "features": clean_json(features),
+            "prediction_result": clean_json(result)
+        }
 
-    line = json.dumps(record, default=str) + "\n"
+        line = json.dumps(record, default=str) + "\n"
 
-    blob_client = get_blob_client()
+        blob_client = get_blob_client()
 
-    if blob_client:
-        try:
+        if blob_client:
             try:
-                blob_client.create_append_blob()
-            except ResourceExistsError:
-                pass
+                try:
+                    old_data = blob_client.download_blob().readall().decode("utf-8")
+                except Exception:
+                    old_data = ""
 
-            blob_client.append_block(line.encode("utf-8"))
-            return {"saved": True, "storage": "Azure Blob Storage"}
-        except Exception as e:
-            print(f"Azure Blob save error: {e}")
+                blob_client.upload_blob(old_data + line, overwrite=True)
 
-    os.makedirs("logs", exist_ok=True)
-    with open("logs/student_prediction_history.jsonl", "a", encoding="utf-8") as f:
-        f.write(line)
+                return {
+                    "saved": True,
+                    "storage": "Azure Blob Storage",
+                    "container": STUDENT_HISTORY_CONTAINER,
+                    "blob": STUDENT_HISTORY_BLOB
+                }
 
-    return {"saved": True, "storage": "Local fallback file"}
+            except Exception as e:
+                print(f"Azure Blob save error: {e}")
+                return {
+                    "saved": False,
+                    "storage": "Azure Blob Storage",
+                    "error": str(e)
+                }
+
+        return {
+            "saved": False,
+            "storage": "Azure Blob Storage",
+            "error": "Blob client not available. Check environment variables or azure-storage-blob package."
+        }
+
+    except Exception as e:
+        print(f"History save failed: {e}")
+        return {"saved": False, "error": str(e)}
 
 
 def read_student_history(limit: int = 20):
@@ -106,14 +161,8 @@ def read_student_history(limit: int = 20):
     if blob_client:
         try:
             data = blob_client.download_blob().readall().decode("utf-8")
-        except Exception:
-            data = ""
-
-    if not data:
-        try:
-            with open("logs/student_prediction_history.jsonl", "r", encoding="utf-8") as f:
-                data = f.read()
-        except Exception:
+        except Exception as e:
+            print(f"Azure Blob read error: {e}")
             data = ""
 
     history = []
@@ -140,7 +189,7 @@ def list_modules():
 def student_history(limit: int = 20):
     return {
         "module": "student",
-        "storage": "Azure Blob Storage" if AZURE_STORAGE_CONNECTION_STRING else "Local fallback file",
+        "storage": "Azure Blob Storage" if AZURE_STORAGE_CONNECTION_STRING else "Not configured",
         "container": STUDENT_HISTORY_CONTAINER,
         "blob": STUDENT_HISTORY_BLOB,
         "history": read_student_history(limit)
@@ -151,15 +200,18 @@ def student_history(limit: int = 20):
 def get_features(module: str):
     if module not in REGISTRY:
         raise HTTPException(status_code=404, detail=f"Unknown module: {module}")
+
     mod = REGISTRY[module]
+
     try:
         defaults = mod.defaults()
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
     return {
         "module": module,
         "feature_columns": list(defaults.keys()),
-        "defaults": defaults
+        "defaults": clean_json(defaults)
     }
 
 
@@ -167,10 +219,12 @@ def get_features(module: str):
 def get_resources(module: str):
     if module not in REGISTRY:
         raise HTTPException(status_code=404, detail=f"Unknown module: {module}")
+
     mod = REGISTRY[module]
+
     try:
         mod.load()
-        return {"module": module, "resources": mod._resources}
+        return {"module": module, "resources": clean_json(mod._resources)}
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -181,38 +235,47 @@ def predict(module: str, req: PredictRequest):
         raise HTTPException(status_code=404, detail=f"Unknown module: {module}")
 
     mod = REGISTRY[module]
+
     try:
         mod.load()
         defaults = mod.defaults()
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Module load/defaults failed: {str(e)}")
 
     unknown = [k for k in req.features.keys() if k not in mod.feature_columns]
     if unknown:
         raise HTTPException(status_code=400, detail=f"Unknown feature(s): {unknown}")
 
-    # Merge default values with user input
-    # This allows {"features": {}} to work using stored default student values
     full_features = defaults.copy()
     full_features.update(req.features)
 
     try:
         result = mod.predict(full_features)
+        result = clean_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
+    history_status = None
+
     if module == "student":
-        save_student_history(full_features, result)
+        history_status = save_student_history(full_features, result)
+
+    if isinstance(result, dict):
+        result["history_storage"] = history_status
 
     return result
+
 
 @app.post("/predict")
 def predict_legacy(req: PredictRequest):
     result = predict("student", req)
 
     return {
-        "at_risk_probability": result["score"],
-        "risk_level": result["level"],
-        "recommended_resources": result["recommended_resources"],
-        "disclaimer": result["disclaimer"]
+        "at_risk_probability": result.get("score"),
+        "risk_level": result.get("level"),
+        "recommended_resources": result.get("recommended_resources"),
+        "disclaimer": result.get("disclaimer"),
+        "history_storage": result.get("history_storage")
     }
