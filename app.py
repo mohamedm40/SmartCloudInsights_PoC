@@ -100,10 +100,7 @@ def get_blob_client():
 
 
 def save_student_history(features: Dict[str, Any], result: Dict[str, Any]):
-    """
-    Saves student prediction history into Azure Blob Storage.
-    If Azure save fails, it will NOT crash prediction endpoint.
-    """
+ 
     try:
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
