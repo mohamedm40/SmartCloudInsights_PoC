@@ -2,11 +2,13 @@ import os
 import json
 from datetime import datetime, timezone
 from typing import Any, Dict
+
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
+
 from modules.registry import get_registry
 from modules.base import ModuleNotReadyError
 
@@ -69,6 +71,60 @@ def clean_json(data: Any):
             return str(data)
 
 
+def repair_sklearn_logistic_models(obj, seen=None):
+    """
+    Fixes scikit-learn LogisticRegression pickle compatibility issue.
+    Some deployed models may not contain multi_class after loading.
+    """
+    if seen is None:
+        seen = set()
+
+    try:
+        if obj is None:
+            return
+
+        obj_id = id(obj)
+        if obj_id in seen:
+            return
+        seen.add(obj_id)
+
+        if isinstance(obj, (str, int, float, bool, bytes)):
+            return
+
+        if isinstance(obj, (pd.DataFrame, pd.Series)):
+            return
+
+        class_name = obj.__class__.__name__
+
+        if class_name == "LogisticRegression" and not hasattr(obj, "multi_class"):
+            obj.multi_class = "auto"
+
+        if hasattr(obj, "steps"):
+            for _, step in obj.steps:
+                repair_sklearn_logistic_models(step, seen)
+
+        if hasattr(obj, "named_steps"):
+            for step in obj.named_steps.values():
+                repair_sklearn_logistic_models(step, seen)
+
+        if hasattr(obj, "estimators_"):
+            for estimator in obj.estimators_:
+                repair_sklearn_logistic_models(estimator, seen)
+
+        if hasattr(obj, "estimator"):
+            repair_sklearn_logistic_models(obj.estimator, seen)
+
+        if hasattr(obj, "base_estimator"):
+            repair_sklearn_logistic_models(obj.base_estimator, seen)
+
+        if hasattr(obj, "__dict__"):
+            for value in obj.__dict__.values():
+                repair_sklearn_logistic_models(value, seen)
+
+    except Exception:
+        pass
+
+
 def module_status():
     status = {}
     for name, mod in REGISTRY.items():
@@ -100,7 +156,6 @@ def get_blob_client():
 
 
 def save_student_history(features: Dict[str, Any], result: Dict[str, Any]):
- 
     try:
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -199,9 +254,13 @@ def get_features(module: str):
     mod = REGISTRY[module]
 
     try:
+        mod.load()
+        repair_sklearn_logistic_models(mod)
         defaults = mod.defaults()
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Feature defaults failed: {str(e)}")
 
     return {
         "module": module,
@@ -219,9 +278,12 @@ def get_resources(module: str):
 
     try:
         mod.load()
+        repair_sklearn_logistic_models(mod)
         return {"module": module, "resources": clean_json(mod._resources)}
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Resources failed: {str(e)}")
 
 
 @app.post("/{module}/predict")
@@ -233,6 +295,7 @@ def predict(module: str, req: PredictRequest):
 
     try:
         mod.load()
+        repair_sklearn_logistic_models(mod)
         defaults = mod.defaults()
     except ModuleNotReadyError as e:
         raise HTTPException(status_code=503, detail=str(e))
